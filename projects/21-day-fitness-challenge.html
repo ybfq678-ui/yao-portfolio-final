@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>21天运动打卡挑战 - YAO Portfolio</title>
+    <link rel="stylesheet" href="../src/index.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100%;
+        overflow-x: hidden;
+        background: #2b2b2b;
+      }
+
+      body {
+        color: #fff;
+      }
+
+      .project-detail-shell {
+        min-height: 100svh;
+        padding: 0;
+        background: #2b2b2b;
+      }
+
+      .portfolio-pdf-only {
+        display: grid;
+        width: 100%;
+        min-height: 100svh;
+        gap: 0;
+        justify-items: center;
+        background: #2b2b2b;
+      }
+
+      .project-pdf-page {
+        display: grid;
+        width: 100%;
+        min-height: 100svh;
+        place-items: start center;
+        overflow: hidden;
+        background: #2b2b2b;
+      }
+
+      .project-pdf-page.is-ready {
+        min-height: 0;
+      }
+
+      .project-pdf-page canvas {
+        display: block;
+        width: 100% !important;
+        height: auto !important;
+        max-width: 100%;
+        background: #fff;
+      }
+
+      .project-pdf-native {
+        display: block;
+        width: 100%;
+        height: 100svh;
+        border: 0;
+        background: #2b2b2b;
+      }
+
+      .portfolio-pdf-only.is-rendering .project-pdf-native {
+        display: none;
+      }
+
+      .pdf-back-button {
+        position: fixed;
+        top: max(6px, env(safe-area-inset-top));
+        left: max(18px, env(safe-area-inset-left));
+        z-index: 20;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 62px;
+        min-height: 30px;
+        padding: 0 12px;
+        border: 1px solid rgba(8, 30, 48, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.42);
+        color: #082033;
+        font: 800 0.78rem/1 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        text-decoration: none;
+        box-shadow: 0 8px 24px -20px rgba(0, 0, 0, 0.45);
+        opacity: 0.72;
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+      }
+
+      .pdf-back-button:hover,
+      .pdf-back-button:focus-visible {
+        border-color: rgba(8, 30, 48, 0.32);
+        background: rgba(255, 255, 255, 0.76);
+        opacity: 1;
+        outline: none;
+        transform: translateY(-1px);
+      }
+    </style>
+  </head>
+  <body>
+    <a class="pdf-back-button" href="../preview.html#work" data-portfolio-back>Back</a>
+    <main class="project-detail-shell" aria-label="21天运动打卡挑战作品集">
+      <section class="portfolio-pdf-only" id="portfolioPdfPages">
+        <object
+          class="project-pdf-native"
+          data="../pdf/21day-sport.pdf#toolbar=0&navpanes=0&scrollbar=0"
+          type="application/pdf"
+          aria-label="21天运动打卡挑战完整作品集 PDF"
+        >
+          <iframe
+            class="project-pdf-native"
+            src="../pdf/21day-sport.pdf#toolbar=0&navpanes=0&scrollbar=0"
+            title="21天运动打卡挑战完整作品集 PDF"
+          ></iframe>
+        </object>
+      </section>
+    </main>
+    <script type="module">
+      import * as pdfjsLib from "./assets/pdfjs/pdf.min.js";
+
+      const pdfUrl = new URL("../pdf/21day-sport.pdf", window.location.href).href;
+      const assetRoot = new URL("./assets/pdfjs/", window.location.href).href;
+      const pagesRoot = document.getElementById("portfolioPdfPages");
+      const nativePdfMarkup = `
+        <object
+          class="project-pdf-native"
+          data="../pdf/21day-sport.pdf#toolbar=0&navpanes=0&scrollbar=0"
+          type="application/pdf"
+          aria-label="21天运动打卡挑战完整作品集 PDF"
+        >
+          <iframe
+            class="project-pdf-native"
+            src="../pdf/21day-sport.pdf#toolbar=0&navpanes=0&scrollbar=0"
+            title="21天运动打卡挑战完整作品集 PDF"
+          ></iframe>
+        </object>
+      `;
+
+      if (pagesRoot) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `${assetRoot}pdf.worker.min.js`;
+        mountPdf().catch((error) => {
+          console.error("Portfolio PDF preview failed.", error);
+          restoreNativePdf();
+        });
+      }
+
+      function restoreNativePdf() {
+        pagesRoot.classList.remove("is-rendering");
+        pagesRoot.innerHTML = nativePdfMarkup;
+      }
+
+      document.querySelector("[data-portfolio-back]")?.addEventListener("click", (event) => {
+        const referrer = document.referrer;
+        const sameFile = window.location.protocol === "file:" && referrer.startsWith("file:");
+        const sameOrigin = window.location.protocol !== "file:" && referrer.startsWith(window.location.origin);
+
+        if (!referrer || window.history.length <= 1 || (!sameFile && !sameOrigin)) return;
+
+        event.preventDefault();
+        window.history.back();
+      });
+
+      function scaleFor(pageViewport) {
+        return Math.max((pagesRoot.clientWidth || window.innerWidth || 320) / pageViewport.width, 0.1);
+      }
+
+      async function renderPage(pdf, pageNumber, shell) {
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: 1 });
+        const cssScale = scaleFor(viewport);
+        const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+        const renderViewport = page.getViewport({ scale: cssScale * outputScale });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d", { alpha: false });
+
+        if (!context) throw new Error("Canvas rendering is unavailable.");
+
+        canvas.width = Math.ceil(renderViewport.width);
+        canvas.height = Math.ceil(renderViewport.height);
+        canvas.style.width = `${Math.ceil(viewport.width * cssScale)}px`;
+        canvas.style.height = `${Math.ceil(viewport.height * cssScale)}px`;
+
+        shell.replaceChildren(canvas);
+
+        await page.render({
+          canvas,
+          viewport: renderViewport,
+        }).promise;
+
+        shell.classList.add("is-ready");
+        page.cleanup();
+      }
+
+      async function mountPdf() {
+        const pdf = await pdfjsLib.getDocument({
+          url: pdfUrl,
+          cMapUrl: `${assetRoot}cmaps/`,
+          cMapPacked: true,
+          standardFontDataUrl: `${assetRoot}standard_fonts/`,
+        }).promise;
+
+        const shells = Array.from({ length: pdf.numPages }, (_, index) => {
+          const shell = document.createElement("article");
+          shell.className = "project-pdf-page";
+          shell.dataset.page = String(index + 1);
+          shell.setAttribute("aria-label", `作品集第 ${index + 1} 页`);
+          return shell;
+        });
+
+        pagesRoot.classList.add("is-rendering");
+        pagesRoot.replaceChildren(...shells);
+
+        await renderPage(pdf, 1, shells[0]);
+
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            const shell = entry.target;
+            const pageNumber = Number(shell.dataset.page);
+
+            renderPage(pdf, pageNumber, shell).catch((error) => {
+              console.error("Portfolio PDF page render failed.", error);
+            });
+            observer.unobserve(shell);
+          });
+        }, { rootMargin: "1400px 0px" });
+
+        shells.slice(1).forEach((shell) => observer.observe(shell));
+      }
+    </script>
+  </body>
+</html>

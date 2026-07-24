@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.vite/
+.cache/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+edge-*/
+.codex/
+.agents/
+
+test-results/
+playwright-report/
